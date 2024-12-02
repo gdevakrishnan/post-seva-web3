@@ -3,23 +3,26 @@ pragma solidity ^0.8.0;
 
 contract PostSevaComplaints {
     // Enum for complaint status
-    enum Status { Pending, InProgress, Resolved, Rejected }
+    enum Status { Review, Accepted, Open, InProgress, Closed, Rejected }
 
     // Struct to store a complaint
     struct Complaint {
         uint id;
-        address citizen;
+        string citizen;
         string description;
         Status status;
-        string staffName; // Staff handling the complaint
-        string postOfficeCode; // Code of the post office
+        string staffName;
+        string postOfficeCode;
         uint timestamp;
+        string feedbackAuthor;
+        string feedback;
     }
 
     // Events
-    event ComplaintFiled(uint complaintId, address indexed citizen, string description, string postOfficeCode);
+    event ComplaintFiled(uint complaintId, string citizen, string description, string postOfficeCode);
     event ComplaintUpdated(uint complaintId, Status status);
     event StaffAssigned(uint complaintId, string staffName);
+    event FeedbackAdded(uint complaintId, string feedbackAuthor, string feedback);
 
     // Variables
     uint private complaintCounter = 0;
@@ -43,22 +46,25 @@ contract PostSevaComplaints {
     }
 
     // Function to file a complaint
-    function fileComplaint(string memory _description, string memory _postOfficeCode) public {
+    function fileComplaint(string memory _citizen, string memory _description, string memory _postOfficeCode) public {
+        require(bytes(_citizen).length > 0, "Citizen cannot be empty");
         require(bytes(_description).length > 0, "Description cannot be empty");
         require(bytes(_postOfficeCode).length > 0, "Post office code cannot be empty");
 
         complaintCounter++;
         complaints[complaintCounter] = Complaint({
             id: complaintCounter,
-            citizen: msg.sender,
+            citizen: _citizen,
             description: _description,
-            status: Status.Pending,
+            status: Status.InProgress,
             staffName: "", // No staff assigned initially
             postOfficeCode: _postOfficeCode,
-            timestamp: block.timestamp
+            timestamp: block.timestamp,
+            feedbackAuthor: "",
+            feedback: ""
         });
 
-        emit ComplaintFiled(complaintCounter, msg.sender, _description, _postOfficeCode);
+        emit ComplaintFiled(complaintCounter, _citizen, _description, _postOfficeCode);
     }
 
     // Function to assign a staff member by name
@@ -77,15 +83,28 @@ contract PostSevaComplaints {
         emit ComplaintUpdated(_complaintId, _status);
     }
 
+    // Function to add feedback to a complaint
+    function addFeedback(uint _complaintId, string memory _feedbackAuthor, string memory _feedback) public validComplaint(_complaintId) {
+        require(bytes(_feedbackAuthor).length > 0, "Feedback author cannot be empty");
+        require(bytes(_feedback).length > 0, "Feedback cannot be empty");
+
+        complaints[_complaintId].feedbackAuthor = _feedbackAuthor;
+        complaints[_complaintId].feedback = _feedback;
+
+        emit FeedbackAdded(_complaintId, _feedbackAuthor, _feedback);
+    }
+
     // Function to fetch a specific complaint
     function getComplaint(uint _complaintId) public view validComplaint(_complaintId) returns (
         uint id,
-        address citizen,
+        string memory citizen,
         string memory description,
         Status status,
         string memory staffName,
         string memory postOfficeCode,
-        uint timestamp
+        uint timestamp,
+        string memory feedbackAuthor,
+        string memory feedback
     ) {
         Complaint memory complaint = complaints[_complaintId];
         return (
@@ -95,7 +114,9 @@ contract PostSevaComplaints {
             complaint.status,
             complaint.staffName,
             complaint.postOfficeCode,
-            complaint.timestamp
+            complaint.timestamp,
+            complaint.feedbackAuthor,
+            complaint.feedback
         );
     }
 
@@ -116,5 +137,4 @@ contract PostSevaComplaints {
     }
 }
 
-
-// Contract Address: 0xaF37d6525BA4E37b4852e5B69C9CddA527219967
+// Contract deployment address: 0x5F8F608F7F30EC59b54c32D28E5AB00d372B1DE6
